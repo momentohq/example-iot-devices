@@ -1,0 +1,11 @@
+{
+  "name": "push-data",
+  "version": "1.0.0",
+  "description": "Pushes iot data to Momento",
+  "main": "index.js",
+  "author": "allenheltondev",
+  "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.332.0",
+    "@gomomento/sdk": "^1.16.2"
+  }
+}

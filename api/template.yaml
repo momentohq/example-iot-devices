@@ -1,0 +1,98 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SAM Template for Managing IoT data
+
+Parameters:
+  SecretId: 
+    Type: String
+    Description: Holds the auth token for Momento
+
+Globals:
+  Function:
+    Timeout: 5
+    Runtime: nodejs18.x
+    MemorySize: 1024
+    Tracing: Active
+    Architectures:
+      - arm64
+    Handler: index.handler
+    Environment:
+      Variables:
+        AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+
+Resources:
+  PushDataFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/push-data
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Sub arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretId}*
+      Environment:
+        Variables:
+          SECRET_ID: !Sub arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretId}
+      Events:
+        AddData:
+          Type: Api
+          Properties:
+            RestApiId: !Ref IoTApi
+            Path: /things/{thing}/data
+            Method: POST
+
+  IoTApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: v1
+      DefinitionBody:
+        Fn::Transform:
+          Name: AWS::Include
+          Parameters:
+            Location: ./openapi.yaml
+
+  AddThingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/add-thing
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Action:
+                - iot:CreateThing
+                - iot:ListThings
+              Resource: "*"      
+      Events:
+        Add:
+          Type: Api
+          Properties:
+            RestApiId: !Ref IoTApi
+            Path: /things
+            Method: POST
+
+  GetDevicesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/get-devices
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Sub arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretId}*
+      Environment:
+        Variables:
+          SECRET_ID: !Sub arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretId}
+      Events:
+        Get:
+          Type: Api
+          Properties:
+            RestApiId: !Ref IoTApi
+            Path: /things
+            Method: GET
+

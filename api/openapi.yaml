@@ -1,0 +1,169 @@
+openapi: 3.0.0
+info:
+  title: IoT Playground
+  description: |
+    Register and send iot info
+  version: 1.0.0
+
+x-amazon-apigateway-request-validators:
+  Validate All:
+    validateRequestParameters: true
+    validateRequestBody: true
+x-amazon-apigateway-gateway-responses:
+  BAD_REQUEST_BODY:
+    statusCode: 400
+    responseTemplates:
+      application/json: '{ "message": "$context.error.validationErrorString" }'
+
+paths:
+  /things:
+    post:
+      summary: Add a new thing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Device'
+      responses:
+        201:
+          $ref: '#/components/responses/Created'
+        400:
+          $ref: '#/components/responses/BadRequest'
+        500:
+          $ref: '#/components/responses/UnknownError'
+      x-amazon-apigateway-request-validator: Validate All
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AddThingFunction.Arn}/invocations
+        httpMethod: POST
+        type: aws_proxy
+
+    get:
+      summary: Get a list of things and their current status
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Devices'
+      x-amazon-apigateway-request-validator: Validate All
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetDevicesFunction.Arn}/invocations
+        httpMethod: POST
+        type: aws_proxy
+
+  /things/{thing}/data:
+    parameters:
+      - $ref: '#/components/parameters/thing'
+    post:
+      summary: Send thing data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Data'
+      responses:
+        204:
+          $ref: '#/components/responses/NoContent'
+        500:
+          $ref: '#/components/responses/UnknownError'
+      x-amazon-apigateway-request-validator: Validate All
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PushDataFunction.Arn}/invocations
+        httpMethod: POST
+        type: aws_proxy
+
+components:
+  parameters:
+    thing:
+      name: thing
+      in: path
+      required: true
+      schema:
+        type: string
+
+  schemas:
+    Device:
+      description: New thing details
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+
+    Devices:
+      description: List of devices and their current status
+      type: array
+      items:
+        type: object
+        required: 
+          - name
+          - status
+        properties:
+          name:
+            type: string
+          status:
+            type: string
+
+    Data:
+      description: IoT device data
+      type: object
+      required:
+        - latitude
+        - longitude
+        - status
+      properties:
+        latitude:
+          type: number
+        longitude:
+          type: number
+        status:
+          type: string
+
+  responses:
+    Created:
+      description: Successfully added into the system
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - id
+            properties:
+              id:
+                type: string
+                description: Message resulting from a creation
+                example: Contact created
+    NoContent:
+      description: Success, but nothing to return
+    BadRequest:
+      description: Unable to process request. Likely due to improperly formatted request.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - message
+            properties:
+              message:
+                type: string
+                description: Message detailing what went wrong
+                example: The 'name' field is required and is missing.
+    UnknownError:
+      description: An unexpected error occurred on the server.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - message
+            properties:
+              message:
+                type: string
+                description: Unknown error message
+                example: An unexpected error occurred.

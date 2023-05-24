@@ -1,0 +1,14 @@
+{
+  "name": "add-thing",
+  "version": "1.0.0",
+  "description": "Add a thing to iot core",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "allenheltondev",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-iot": "^3.332.0"
+  }
+}
